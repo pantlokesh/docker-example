@@ -11,3 +11,5 @@ Milestone 2 - Added POST, DELETE and GET for id APIs.
 2. Get one product - `curl 'localhost:8080/product/100'`
 3. Add a product - `curl -XPOST 'localhost:8080/product' --header 'Content-Type: application/json' --data-raw '{"id": 102,"name": "Washing Machine","batchNo": "38753BK9","price": 9000.00,"noOfProduct": 7}'`
 4. Delete one product - `curl -XDELETE 'localhost:8080/product/102'`
+
+Milestone 3 - Moved storage to Database
