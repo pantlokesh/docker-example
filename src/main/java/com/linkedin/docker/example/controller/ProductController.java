@@ -1,5 +1,7 @@
-package com.linkedin.docker.example;
+package com.linkedin.docker.example.controller;
 
+import com.linkedin.docker.example.service.IProductService;
+import com.linkedin.docker.example.entity.Product;
 import java.util.Collection;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.DeleteMapping;

@@ -1,6 +1,9 @@
-package com.linkedin.docker.example;
-
+package com.linkedin.docker.example.entity;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
+@Document(collection = "products")
 public class Product {
+  @Id
   private int id;
   private String name;
   private String batchNo;

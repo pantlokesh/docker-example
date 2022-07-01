@@ -1,5 +1,6 @@
-package com.linkedin.docker.example;
+package com.linkedin.docker.example.service;
 
+import com.linkedin.docker.example.entity.Product;
 import java.util.Collection;
 
 public interface IProductService {
