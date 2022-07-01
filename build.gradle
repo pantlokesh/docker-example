@@ -1,8 +1,8 @@
 plugins {
 	id 'org.springframework.boot' version '2.7.1'
 	id 'io.spring.dependency-management' version '1.0.11.RELEASE'
+	id "com.palantir.docker" version "0.34.0"
 	id 'java'
-	id 'war'
 }
 
 group = 'com.linkedin.docker-example'
@@ -11,19 +11,29 @@ sourceCompatibility = '11'
 
 repositories {
 	mavenCentral()
+	gradlePluginPortal()
 }
 
 dependencies {
 //	implementation 'org.springframework.boot:spring-boot-starter-data-jdbc'
 //	implementation 'org.springframework.boot:spring-boot-starter-data-redis-reactive'
 	implementation 'org.springframework.boot:spring-boot-starter-web'
-	implementation 'org.springframework.kafka:spring-kafka'
-	providedRuntime 'org.springframework.boot:spring-boot-starter-tomcat'
+//	implementation 'org.springframework.kafka:spring-kafka'
+	implementation 'org.springframework.boot:spring-boot-starter-tomcat'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
-	testImplementation 'io.projectreactor:reactor-test'
-	testImplementation 'org.springframework.kafka:spring-kafka-test'
+//	testImplementation 'io.projectreactor:reactor-test'
+//	testImplementation 'org.springframework.kafka:spring-kafka-test'
 }
 
 tasks.named('test') {
 	useJUnitPlatform()
+}
+
+tasks.jar {
+	enabled = false
+}
+
+docker {
+	name "${project.name}:${project.version}"
+	dockerfile file('Dockerfile')
 }
