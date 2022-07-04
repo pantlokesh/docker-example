@@ -27,7 +27,7 @@ public class ProductController {
   }
 
   @GetMapping(value = "/product/{id}")
-  public Product getProduct(@PathVariable String id) {
+  public Product getProduct(@PathVariable int id) {
     return productService.find(id);
   }
 
@@ -37,7 +37,12 @@ public class ProductController {
   }
 
   @DeleteMapping(value = "/product/{id}")
-  public void deleteProduct(@PathVariable String id) {
-    productService.delete(id);
+  public Product deleteProduct(@PathVariable int id) {
+    return productService.delete(id);
+  }
+
+  @DeleteMapping(value = "/product/cache/{id}")
+  public Product deleteProductFromCache(@PathVariable int id) {
+    return productService.deleteFromCache(id);
   }
 }

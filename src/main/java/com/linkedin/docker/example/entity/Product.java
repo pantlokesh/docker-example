@@ -1,14 +1,17 @@
 package com.linkedin.docker.example.entity;
+import java.io.Serializable;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.mapping.Document;
+
 @Document(collection = "products")
-public class Product {
+public class Product implements Serializable {
   @Id
   private int id;
   private String name;
   private String batchNo;
   private double price;
   private int noOfProduct;
+  private String source;
 
   //default constructor
   public Product() {
@@ -65,4 +68,16 @@ public class Product {
     this.noOfProduct = noOfProduct;
   }
 
+  public String getSource() {
+    return source;
+  }
+
+  public void setSource(String source) {
+    this.source = source;
+  }
+
+  public Product setSourceAndGetProduct(String source) {
+    setSource(source);
+    return this;
+  }
 }

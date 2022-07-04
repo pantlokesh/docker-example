@@ -6,9 +6,11 @@ import java.util.Collection;
 public interface IProductService {
   Collection<Product> findAll();
 
-  Product find(String id);
+  Product find(int id);
 
   void add(Product product);
 
-  void delete(String id);
+  Product delete(int id);
+
+  Product deleteFromCache(int id);
 }
