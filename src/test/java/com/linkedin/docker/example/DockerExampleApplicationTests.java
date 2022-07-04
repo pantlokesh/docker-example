@@ -18,13 +18,16 @@ import java.util.Optional;
 import java.util.Set;
 import org.bson.Document;
 import org.bson.conversions.Bson;
+import org.junit.Assert;
 import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.springframework.context.annotation.Bean;
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration;
 import org.springframework.data.redis.connection.jedis.JedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.SetOperations;
 import org.springframework.data.redis.serializer.JdkSerializationRedisSerializer;
 import org.testcontainers.containers.DockerComposeContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
@@ -32,6 +35,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 import static io.restassured.RestAssured.*;
 import static com.mongodb.client.model.Filters.eq;
+import static org.junit.jupiter.api.Assertions.*;
 
 
 @Testcontainers
@@ -45,16 +49,34 @@ class DockerExampleApplicationTests {
 
   public static DockerComposeContainer environment;
 
+  private static SetOperations<Integer, Product> redisSetOpClient;
+  private static MongoCollection<Document> collection;
+
   @BeforeAll
   public static void setUpClass() {
     environment =
-        new DockerComposeContainer(new File("src/test/resources/docker-compose.yml"))
-            .withExposedService(REDIS_SERVICE, REDIS_PORT, Wait.forListeningPort())
+        new DockerComposeContainer(new File("docker-compose.yml")).withExposedService(REDIS_SERVICE,
+                REDIS_PORT, Wait.forListeningPort())
             .withExposedService(MONGO_SERVICE, MONGO_PORT, Wait.forListeningPort())
             .withExposedService(EXAMPLE_SERVICE, BACKEND_PORT, Wait.forListeningPort())
             .waitingFor(EXAMPLE_SERVICE, Wait.forLogMessage(".* Started DockerExampleApplication .*", 1));
 
     environment.start();
+    final RedisStandaloneConfiguration config =
+        new RedisStandaloneConfiguration(environment.getServiceHost(REDIS_SERVICE, REDIS_PORT),
+            environment.getServicePort(REDIS_SERVICE, REDIS_PORT));
+    final RedisTemplate<Integer, Product> redisTemplate = new RedisTemplate<>();
+    redisTemplate.setKeySerializer(new JdkSerializationRedisSerializer());
+    redisTemplate.setValueSerializer(new JdkSerializationRedisSerializer());
+    JedisConnectionFactory connectionFactory = new JedisConnectionFactory(config);
+    connectionFactory.afterPropertiesSet();
+    redisTemplate.setConnectionFactory(connectionFactory);
+    redisTemplate.afterPropertiesSet();
+    redisSetOpClient = redisTemplate.opsForSet();
+    final String uri = mongoConnectionString();
+    MongoClient mongoClient = MongoClients.create(uri);
+    MongoDatabase database = mongoClient.getDatabase("example");
+    collection = database.getCollection("products");
   }
 
   @AfterAll
@@ -63,65 +85,50 @@ class DockerExampleApplicationTests {
   }
 
   @Test
-  public void test_this() {
-    System.out.printf("Docker Redis - %s \n", redisConnectionString());
-    System.out.printf("Docker Mongo - %s \n", mongoConnectionString());
-    System.out.printf("Example Application - %s \n", backendConnectionString());
-
-    System.out.println("Making call to application");
-
-    Response post = given().baseUri(backendConnectionString())
+  public void product_addANewProduct_productPresentInRedisMongoAndAlsoThroughGetAPI() {
+    final String postBody =
+        "{\n" + "\"id\": 110,\n" + "\"name\": \"Washing Machine\", \n" + "\"batchNo\": \"38753BK9\",\n"
+            + "\"price\": 9000.00,\n" + "\"noOfProduct\": 7\n" + "}";
+    final Response post = given().baseUri(backendConnectionString())
         .basePath("/product")
-        .body("{\n" + "\"id\": 110,\n" + "\"name\": \"Washing Machine\", \n" + "\"batchNo\": \"38753BK9\",\n"
-            + "\"price\": 9000.00,\n" + "\"noOfProduct\": 7\n" + "}")
+        .body(postBody)
         .contentType(ContentType.JSON)
         .post();
 
-    System.out.println(post.asString());
+    assertEquals(200, post.getStatusCode());
 
-    System.out.println("Checking in Redis");
+    final Set<Product> members = redisSetOpClient.members(110);
+    final Product productFromRedis = members.stream().findFirst().orElse(null);
+    assertNotNull(productFromRedis);
+    assertEquals("Washing Machine", productFromRedis.getName());
+    assertEquals("38753BK9", productFromRedis.getBatchNo());
+    assertEquals("Redis", productFromRedis.getSource());
 
-    final RedisStandaloneConfiguration config = new RedisStandaloneConfiguration( environment.getServiceHost(REDIS_SERVICE, REDIS_PORT) , environment.getServicePort(
-        REDIS_SERVICE, REDIS_PORT));
-    final RedisTemplate<Integer, Product> redisTemplate = new RedisTemplate<>();
-    redisTemplate.setKeySerializer(new JdkSerializationRedisSerializer());
-    redisTemplate.setValueSerializer(new JdkSerializationRedisSerializer());
-    JedisConnectionFactory connectionFactory = new JedisConnectionFactory(config);
-    connectionFactory.afterPropertiesSet();
-    redisTemplate.setConnectionFactory(connectionFactory);
-    redisTemplate.afterPropertiesSet();
-    Set<Product> members = redisTemplate.opsForSet().members(110);
-    System.out.println("Redis value for key 110-" + members.stream().findFirst().orElse(null));
-    System.out.println("Hello");
+    final Document productInMongo = collection.find(eq("_id", 110)).first();
+    assertNotNull(productInMongo);
+    assertEquals("Washing Machine", productInMongo.get("name"));
+    assertEquals("Mongo", productInMongo.get("source"));
+    assertEquals(7, productInMongo.get("noOfProduct"));
 
-    final String uri = mongoConnectionString();
+    final Response get = given().baseUri(backendConnectionString())
+        .basePath("/product")
+        .accept(ContentType.JSON)
+        .get("/110");
 
-    try (MongoClient mongoClient = MongoClients.create(uri)) {
-      MongoDatabase database = mongoClient.getDatabase("example");
-      MongoCollection<Document> collection = database.getCollection("products");
-
-      Bson projectionFields = Projections.fields(
-          Projections.include("name", "batchNo", "price"));
-      Document doc = collection.find(eq("_id", 110))
-          .projection(projectionFields)
-          .first();
-      System.out.println(Optional.ofNullable(doc).map(Document::toJson).orElse(null));
-    }
+    assertEquals(200, get.getStatusCode());
+    final Product productFromGetRequest = get.getBody().as(Product.class);
+    assertEquals("Washing Machine", productFromGetRequest.getName());
+    assertEquals("38753BK9", productFromGetRequest.getBatchNo());
+    assertEquals("Redis", productFromGetRequest.getSource());
   }
 
-  private String redisConnectionString() {
-//    return "redis://localhost:6379";
-    return "redis://" + environment.getServiceHost(REDIS_SERVICE, REDIS_PORT) + ":" + environment.getServicePort(
-        REDIS_SERVICE, REDIS_PORT);
-  }
-
-  private String mongoConnectionString() {
+  private static String mongoConnectionString() {
 //    return "mongodb://localhost:27017";
     return "mongodb://" + environment.getServiceHost(MONGO_SERVICE, MONGO_PORT) + ":" + environment.getServicePort(
         MONGO_SERVICE, MONGO_PORT);
   }
 
-  private String backendConnectionString() {
+  private static String backendConnectionString() {
 //    return "http://localhost:8080";
     return "http://" + environment.getServiceHost(EXAMPLE_SERVICE, BACKEND_PORT) + ":" + environment.getServicePort(
         EXAMPLE_SERVICE, BACKEND_PORT);
