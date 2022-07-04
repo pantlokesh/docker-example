@@ -97,6 +97,7 @@ class DockerExampleApplicationTests {
 
     assertEquals(200, post.getStatusCode());
 
+    // Assert Data in Redis
     final Set<Product> members = redisSetOpClient.members(110);
     final Product productFromRedis = members.stream().findFirst().orElse(null);
     assertNotNull(productFromRedis);
@@ -104,12 +105,15 @@ class DockerExampleApplicationTests {
     assertEquals("38753BK9", productFromRedis.getBatchNo());
     assertEquals("Redis", productFromRedis.getSource());
 
+    // Assert Data in Mongo
     final Document productInMongo = collection.find(eq("_id", 110)).first();
     assertNotNull(productInMongo);
     assertEquals("Washing Machine", productInMongo.get("name"));
     assertEquals("Mongo", productInMongo.get("source"));
     assertEquals(7, productInMongo.get("noOfProduct"));
 
+
+    // Assert Data can be fetched from GET API
     final Response get = given().baseUri(backendConnectionString())
         .basePath("/product")
         .accept(ContentType.JSON)
@@ -123,13 +127,11 @@ class DockerExampleApplicationTests {
   }
 
   private static String mongoConnectionString() {
-//    return "mongodb://localhost:27017";
     return "mongodb://" + environment.getServiceHost(MONGO_SERVICE, MONGO_PORT) + ":" + environment.getServicePort(
         MONGO_SERVICE, MONGO_PORT);
   }
 
   private static String backendConnectionString() {
-//    return "http://localhost:8080";
     return "http://" + environment.getServiceHost(EXAMPLE_SERVICE, BACKEND_PORT) + ":" + environment.getServicePort(
         EXAMPLE_SERVICE, BACKEND_PORT);
   }
