@@ -45,3 +45,10 @@ being fetched from DB or cache.
 2. Check running processes - `docker ps`
 3. Check logs for Application - `docker-logs docker logs docker-example_docker-example_1`
 4. Added another API to remove from product from only Cache- `curl -XDELETE 'localhost:8080/product/102'`
+
+Milestone 5 - Added End-to-End Tests using docker library TestContainer
+
+1. Connect to Mongo - `mongosh mongodb://127.0.0.1:27017/example`
+   1. Find in collection - `db.products.find()`
+2. Connect to Redis - `docker exec -it docker-example_docker-example-redis_1 redis-cli -h localhost -p 6379`
+   1. Get all Keys - `KEYS *`

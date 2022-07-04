@@ -80,4 +80,10 @@ public class Product implements Serializable {
     setSource(source);
     return this;
   }
+
+  @Override
+  public String toString() {
+    return "Product{" + "id=" + id + ", name='" + name + '\'' + ", batchNo='" + batchNo + '\'' + ", price=" + price
+        + ", noOfProduct=" + noOfProduct + ", source='" + source + '\'' + '}';
+  }
 }
